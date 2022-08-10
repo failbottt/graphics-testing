@@ -1,7 +1,7 @@
 #version 450 core
 
 layout (location = 0) in vec4 position;
-layout (location = 1) in vec4 snakeColor;
+layout (location = 1) in vec4 Color;
 layout (location = 2) in vec2 a_TexCoord;
 layout (location = 3) in float a_TexIndex;
 
@@ -14,7 +14,7 @@ out float v_TexIndex;
 void main(void)
 {
   gl_Position = projection * position;
-  vs_color = snakeColor; 
+  vs_color = Color; 
   v_TexIndex = a_TexIndex;
   v_TexCoord = a_TexCoord;
 }
