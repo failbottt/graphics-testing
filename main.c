@@ -15,6 +15,13 @@
 
 #define SCREEN_WIDTH   1024
 #define SCREEN_HEIGHT  786
+#define NUM_GLYPHS 128
+
+struct glyph_info {
+	int x0, y0, x1, y1;	// coords of glyph in the texture atlas
+	int x_off, y_off;   // left & top bearing when rendering
+	int advance;        // x advance when rendering
+} info[NUM_GLYPHS];
 
 void render_text(const char* text, float x, float y, float scale);
 GLuint compile_shaders(void);
@@ -216,8 +223,8 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-	FT_Done_Face(face);
-	FT_Done_FreeType(ft);
+	/* FT_Done_Face(face); */
+	/* FT_Done_FreeType(ft); */
 
 	// configure VAO/VBO for texture quads
 	// -----------------------------------
@@ -262,8 +269,69 @@ int main() {
 
 	glBindVertexArray(0);
 
-	int w, h, bits;
-	unsigned char *pixels = stbi_load("./images/colony.png", &w, &h, &bits, STBI_rgb_alpha);
+	/* unsigned int w, h, bits; */
+
+	printf("HERE\n");
+	unsigned int max_dim = (1 + (face->size->metrics.height >> 6)) * ceilf(sqrtf(NUM_GLYPHS));
+	unsigned int tex_width = 1;
+	while(tex_width < max_dim) tex_width <<= 1;
+	unsigned int tex_height = tex_width;
+
+	// render glyphs to atlas
+	
+	printf("281\n");
+	char* pixels = (char*)calloc(tex_width * tex_height, 1);
+	unsigned int pen_x = 0, pen_y = 0;
+
+	for(int i = 32; i < NUM_GLYPHS; ++i){
+		FT_Load_Char(face, i, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
+		FT_Bitmap* bmp = &face->glyph->bitmap;
+
+		if(pen_x + bmp->width >= tex_width){
+			pen_x = 0;
+			pen_y += ((face->size->metrics.height >> 6) + 1);
+		}
+
+		for(unsigned int row = 0; row < bmp->rows; ++row){
+			for(unsigned int col = 0; col < bmp->width; ++col){
+				int x = pen_x + col;
+				int y = pen_y + row;
+				pixels[y * tex_width + x] = bmp->buffer[row * bmp->pitch + col];
+			}
+		}
+
+		// this is stuff you'd need when rendering individual glyphs out of the atlas
+
+		info[i].x0 = pen_x;
+		info[i].y0 = pen_y;
+		info[i].x1 = pen_x + bmp->width;
+		info[i].y1 = pen_y + bmp->rows;
+
+		info[i].x_off   = face->glyph->bitmap_left;
+		info[i].y_off   = face->glyph->bitmap_top;
+		info[i].advance = face->glyph->advance.x >> 6;
+
+		pen_x += bmp->width + 1;
+	}
+
+	/* FT_Done_FreeType(ft); */
+
+	// write png
+
+	printf("319\n");
+	char* png_data = (char*)calloc(tex_width * tex_height * 4, 1);
+	for(unsigned int i = 0; i < (tex_width * tex_height); ++i){
+		png_data[i * 4 + 0] |= pixels[i];
+		png_data[i * 4 + 1] |= pixels[i];
+		png_data[i * 4 + 2] |= pixels[i];
+		png_data[i * 4 + 3] = 0xff;
+	}
+
+	/* stbi_write_png("font_output.png", tex_width, tex_height, 4, png_data, tex_width * 4); */
+
+	/* free(png_data); */
+	/* free(pixels); */
+	/* unsigned char *pixels = stbi_load("./images/colony.png", &w, &h, &bits, STBI_rgb_alpha); */
 
 	GLuint textureID;
 	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
@@ -273,7 +341,7 @@ int main() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 	stbi_image_free(pixels);
 
 	int quit = 0;
@@ -281,8 +349,8 @@ int main() {
 	while (!quit) {
 		glfwPollEvents();
 
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_BLEND);
+		/* glDisable(GL_CULL_FACE); */
+		/* glDisable(GL_BLEND); */
 
 		const GLfloat bgColor[] = {0.2f,0.3f,0.5f,1.0f};
 		glClearBufferfv(GL_COLOR, 0, bgColor);
