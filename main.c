@@ -16,6 +16,7 @@
 #define SCREEN_WIDTH   1024
 #define SCREEN_HEIGHT  786
 #define NUM_GLYPHS 128
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 struct glyph_info {
 	int x0, y0, x1, y1;	// coords of glyph in the texture atlas
@@ -51,6 +52,7 @@ typedef struct {
 	VEC2 Size;      // Size of glyph
 	VEC2 Bearing;   // Offset from baseline to left/top of glyph
 	int16_t Advance;   // Horizontal offset to advance to next glyph
+	struct FT_Bitmap_ *bitmap;
 } Character;
 
 Character Characters[128];
@@ -176,67 +178,126 @@ int main() {
 		printf("ERROR::FREETYPE: Failed to load font at ./external/fonts/Hack-Regular.ttf\n");
 		return -1;
 	}
-	else {
-		FT_Set_Pixel_Sizes(face, 16, 16);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-		// make textures for ASCII characters 0-128
-		for (uint8_t c = 0; c < 128; c++)
-		{
-			if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-			{
-				printf("ERROR::FREETYTPE: Failed to load Glyph\n");
-				continue;
-			}
+	FT_Set_Pixel_Sizes(face, 14, 14);
+	FT_GlyphSlot g = face->glyph;
+	int w = 0;
+	int h = 0;
 
-			unsigned int texture;
-			glGenTextures(1, &texture);
+	unsigned int rowh = 0;
+	unsigned int roww = 0;
 
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glTexImage2D(
-					GL_TEXTURE_2D,
-					0,
-					GL_RED,
-					face->glyph->bitmap.width,
-					face->glyph->bitmap.rows,
-					0,
-					GL_RED,
-					GL_UNSIGNED_BYTE,
-					face->glyph->bitmap.buffer
-					);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-			VEC2 size = {face->glyph->bitmap.width, face->glyph->bitmap.rows};
-			VEC2 bearing = {face->glyph->bitmap_left, face->glyph->bitmap_top};
-			Character character = {
-				texture,
-				size,
-				bearing,
-				(unsigned int)(face->glyph->advance.x)
-			};
-
-			Characters[c] = character;
+	for (int i = 32; i < 127; i++) {
+		if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
+			fprintf(stderr, "Loading character %c failed!\n", i);
+			continue;
 		}
-		glBindTexture(GL_TEXTURE_2D, 0);
+		if (roww + g->bitmap.width + 1 >= 350) {
+			w = MAX(w, roww);
+			h += rowh;
+			roww = 0;
+			rowh = 0;
+		}
+		roww += g->bitmap.width + 1;
+		rowh = MAX(rowh, g->bitmap.rows);
 	}
+
+	w = MAX(w, roww);
+	h += rowh;
+
+
+	GLuint textureID;
+	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	// make textures for ASCII characters 0-128
+	int ox = 0;
+	int oy = 0;
+
+	/* for (int i = 65; i < 66; i++) { */
+	/* 	if (FT_Load_Char(face, i, FT_LOAD_RENDER)) { */
+	/* 		fprintf(stderr, "Loading character %c failed!\n", i); */
+	/* 		continue; */
+	/* 	} */
+
+
+	/* 	if (ox + g->bitmap.width + 1 >= SCREEN_WIDTH) { */
+	/* 		oy += rowh; */
+	/* 		rowh = 0; */
+	/* 		ox = 0; */
+	/* 	} */
+
+	/* 	/1* glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_RGBA, GL_UNSIGNED_BYTE, g->bitmap.buffer); *1/ */
+	/* 	/1* c[i].ax = g->advance.x >> 6; *1/ */
+	/* 	/1* c[i].ay = g->advance.y >> 6; *1/ */
+
+	/* 	/1* c[i].bw = g->bitmap.width; *1/ */
+	/* 	/1* c[i].bh = g->bitmap.rows; *1/ */
+
+	/* 	/1* c[i].bl = g->bitmap_left; *1/ */
+	/* 	/1* c[i].bt = g->bitmap_top; *1/ */
+
+	/* 	/1* c[i].tx = ox / (float)w; *1/ */
+	/* 	/1* c[i].ty = oy / (float)h; *1/ */
+
+	/* 	rowh = MAX(rowh, g->bitmap.rows); */
+	/* 	ox += g->bitmap.width + 1; */
+	/* } */
+
+	float img_height = h;
+	float img_width = w;
+	rowh = 0;
+
+	for (uint8_t c = 32; c <127 ; c++)
+	{
+		if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+		{
+			printf("ERROR::FREETYTPE: Failed to load Glyph\n");
+			return -1;
+		}
+
+		if (ox + g->bitmap.width + 1 >= img_width) {
+			oy += rowh;
+			rowh = 0;
+			ox = 0;
+		}
+
+		glTexSubImage2D(GL_TEXTURE_2D,
+				0,
+				ox,
+				oy,
+				face->glyph->bitmap.width,
+				face->glyph->bitmap.rows,
+				GL_RED,
+				GL_UNSIGNED_BYTE,
+				face->glyph->bitmap.buffer
+				);
+		rowh = MAX(rowh, g->bitmap.rows);
+		ox += g->bitmap.width + 1;
+	}
+	
+
+	/* glBindTexture(GL_TEXTURE_2D, 0); */
 
 	/* FT_Done_Face(face); */
 	/* FT_Done_FreeType(ft); */
 
 	// configure VAO/VBO for texture quads
 	// -----------------------------------
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	/* glGenVertexArrays(1, &VAO); */
+	/* glGenBuffers(1, &VBO); */
+	/* glBindVertexArray(VAO); */
+	/* glBindBuffer(GL_ARRAY_BUFFER, VBO); */
+	/* glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW); */
+	/* glEnableVertexAttribArray(0); */
+	/* glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0); */
+	/* glBindBuffer(GL_ARRAY_BUFFER, 0); */
+	/* glBindVertexArray(0); */
 
 	char *code = "Good news, everyone!";
 
@@ -269,81 +330,6 @@ int main() {
 
 	glBindVertexArray(0);
 
-	/* unsigned int w, h, bits; */
-
-	printf("HERE\n");
-	unsigned int max_dim = (1 + (face->size->metrics.height >> 6)) * ceilf(sqrtf(NUM_GLYPHS));
-	unsigned int tex_width = 1;
-	while(tex_width < max_dim) tex_width <<= 1;
-	unsigned int tex_height = tex_width;
-
-	// render glyphs to atlas
-	
-	printf("281\n");
-	char* pixels = (char*)calloc(tex_width * tex_height, 1);
-	unsigned int pen_x = 0, pen_y = 0;
-
-	for(int i = 32; i < NUM_GLYPHS; ++i){
-		FT_Load_Char(face, i, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
-		FT_Bitmap* bmp = &face->glyph->bitmap;
-
-		if(pen_x + bmp->width >= tex_width){
-			pen_x = 0;
-			pen_y += ((face->size->metrics.height >> 6) + 1);
-		}
-
-		for(unsigned int row = 0; row < bmp->rows; ++row){
-			for(unsigned int col = 0; col < bmp->width; ++col){
-				int x = pen_x + col;
-				int y = pen_y + row;
-				pixels[y * tex_width + x] = bmp->buffer[row * bmp->pitch + col];
-			}
-		}
-
-		// this is stuff you'd need when rendering individual glyphs out of the atlas
-
-		info[i].x0 = pen_x;
-		info[i].y0 = pen_y;
-		info[i].x1 = pen_x + bmp->width;
-		info[i].y1 = pen_y + bmp->rows;
-
-		info[i].x_off   = face->glyph->bitmap_left;
-		info[i].y_off   = face->glyph->bitmap_top;
-		info[i].advance = face->glyph->advance.x >> 6;
-
-		pen_x += bmp->width + 1;
-	}
-
-	/* FT_Done_FreeType(ft); */
-
-	// write png
-
-	printf("319\n");
-	char* png_data = (char*)calloc(tex_width * tex_height * 4, 1);
-	for(unsigned int i = 0; i < (tex_width * tex_height); ++i){
-		png_data[i * 4 + 0] |= pixels[i];
-		png_data[i * 4 + 1] |= pixels[i];
-		png_data[i * 4 + 2] |= pixels[i];
-		png_data[i * 4 + 3] = 0xff;
-	}
-
-	/* stbi_write_png("font_output.png", tex_width, tex_height, 4, png_data, tex_width * 4); */
-
-	/* free(png_data); */
-	/* free(pixels); */
-	/* unsigned char *pixels = stbi_load("./images/colony.png", &w, &h, &bits, STBI_rgb_alpha); */
-
-	GLuint textureID;
-	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-	stbi_image_free(pixels);
-
 	int quit = 0;
 
 	while (!quit) {
@@ -365,10 +351,8 @@ int main() {
 
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
 
-		float img_height = 400;
-		float img_width = 600;
-		float x = SCREEN_WIDTH-20;
-		float y = img_height;
+		float x = img_height + 400;
+		float y = img_width + 400;
 
 		float vertices[] = {
 			// snake
@@ -395,20 +379,19 @@ int main() {
 
 		glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 
+		/* glEnable(GL_CULL_FACE); */
+		/* glEnable(GL_BLEND); */
+		/* glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); */
 
-		glEnable(GL_CULL_FACE);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		/* float text_padding_left = 10.0f; */
+		/* float text_y_coordinates = (float)(SCREEN_HEIGHT) - 18; */
 
-		float text_padding_left = 10.0f;
-		float text_y_coordinates = (float)(SCREEN_HEIGHT) - 18;
-
-		render_text(
-				code, 
-				text_padding_left, 
-				text_y_coordinates,
-				1.0f
-				);
+		/* render_text( */
+		/* 		code, */ 
+		/* 		text_padding_left, */ 
+		/* 		text_y_coordinates, */
+		/* 		1.0f */
+		/* 		); */
 
 		glfwSwapBuffers(window);
 	}
