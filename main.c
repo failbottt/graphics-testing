@@ -14,6 +14,8 @@
 #include "stb_image.h"
 
 #define NUM_GLYPHS 128
+#define LETTER_SPACING 12.75f
+#define LINE_SPACING 32 
 
 #define SCREEN_WIDTH  1980 
 #define SCREEN_HEIGHT  786
@@ -253,7 +255,7 @@ int main() {
 	
 	// make textures for ASCII characters 0-128
 	int cell_size = 16;
-	int ox = 2;
+	int ox = 0;
 	int oy = 0;
 	float img_height = h;
 	float img_width = w;
@@ -274,7 +276,7 @@ int main() {
 			tyidx++;
 			txidx = 0;
 			oy += rowh;
-			ox = 2;
+			ox = 0;
 		}
 
 		glTexSubImage2D(GL_TEXTURE_2D,
@@ -411,8 +413,8 @@ int main() {
 
 			int yl= ch.yoffset;
 			int xl= ch.xoffset;
-			float x = w - w / 2 + (i * spritewidth + 40);
-			float y = SCREEN_HEIGHT - spriteheight + ch.bt;
+			float x = w - w / 2 + (i * LETTER_SPACING);
+			float y = SCREEN_HEIGHT - LINE_SPACING + ch.bt;
 
 			float blx = ((xl* spritewidth) / w);
 			float bly = ((yl* spriteheight) / h); // bl
