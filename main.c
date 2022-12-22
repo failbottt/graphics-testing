@@ -213,11 +213,11 @@ int main() {
 		return -1;
 	}
 
-	FT_Set_Pixel_Sizes(face, 32, 32);
+	FT_Set_Pixel_Sizes(face, 20, 20);
 	FT_GlyphSlot g = face->glyph;
 
-	int font_atlas_width = 1028;
-	int font_atlas_height = 384;
+	int font_atlas_width = 416;
+	int font_atlas_height = 64;
 	unsigned int rowh = 0;
 	unsigned int roww = 0;
 
@@ -252,9 +252,9 @@ int main() {
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	
 	// make textures for ASCII characters 0-128
-	int cell_size = 64;
-	int ox = 24;
-	int oy = 24;
+	int cell_size = 16;
+	int ox = 2;
+	int oy = 0;
 	float img_height = h;
 	float img_width = w;
 	rowh = 0;
@@ -274,7 +274,7 @@ int main() {
 			tyidx++;
 			txidx = 0;
 			oy += rowh;
-			ox = 24;
+			ox = 2;
 		}
 
 		glTexSubImage2D(GL_TEXTURE_2D,
@@ -402,8 +402,8 @@ int main() {
 
 		glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 
-		float spritewidth = 64;
-		float spriteheight = 64;
+		float spritewidth = 16;
+		float spriteheight = 16;
 
 		char *text = "Good news, everyone!";
 		for (int i = 0; i < strlen(text); i++) {
@@ -411,8 +411,8 @@ int main() {
 
 			int yl= ch.yoffset;
 			int xl= ch.xoffset;
-			float x = w - w / 2 + (i * spritewidth);
-			float y = SCREEN_HEIGHT + ch.bt;
+			float x = w - w / 2 + (i * spritewidth + 40);
+			float y = SCREEN_HEIGHT - spriteheight + ch.bt;
 
 			float blx = ((xl* spritewidth) / w);
 			float bly = ((yl* spriteheight) / h); // bl
