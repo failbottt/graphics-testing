@@ -13,6 +13,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define DEBUG 0
+
 #define NUM_GLYPHS 128
 #define LETTER_SPACING 12.75f
 #define LINE_SPACING 32 
@@ -20,6 +22,9 @@
 #define SCREEN_WIDTH  1980 
 #define SCREEN_HEIGHT  786
 #define MAX(a,b) (((a)>(b))?(a):(b))
+
+int font_atlas_width = 416;
+int font_atlas_height = 64;
 
 unsigned int indices[] = {  // note that we start from 0!
 	0, 1, 3,  // first Triangle
@@ -218,8 +223,6 @@ int main() {
 	FT_Set_Pixel_Sizes(face, 20, 20);
 	FT_GlyphSlot g = face->glyph;
 
-	int font_atlas_width = 416;
-	int font_atlas_height = 64;
 	unsigned int rowh = 0;
 	unsigned int roww = 0;
 
@@ -358,51 +361,19 @@ int main() {
 	while (RUNNING) {
 		glfwPollEvents();
 
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_BLEND);
-
 		const GLfloat bgColor[] = {0.10f,0.10f,0.10f,1.0f};
 		glClearBufferfv(GL_COLOR, 0, bgColor);
-
 		glUseProgram(texture_program);
 		int loc = glGetUniformLocation(texture_program, "u_Textures");
 		int samplers[1] = {0};
 		glUniform1iv(loc, 1, samplers);
-
 		glBindTextureUnit(0, textureID);
 		glBindVertexArray(vertex_array_object);
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
-		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
 
-		float img_height = font_atlas_height;
-		float img_width = font_atlas_width;
-		float xt = (SCREEN_WIDTH / 2) + (img_width / 2);
-		float yt = SCREEN_HEIGHT / 2;
-
-		float vertices[] = {
-			// snake
-			xt - img_width, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,// top left
-
-			xt, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,// top right
-			xt,  yt - img_height, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
-			xt - img_width, yt - img_height, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f// bottom left
-		};
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)0);
-
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)12);
-
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)28);
-
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
-
-		glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+#if DEBUG
+		draw_font_atlas();
+#endif
 
 		float spritewidth = 16;
 		float spriteheight = 16;
@@ -468,13 +439,6 @@ int main() {
 			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 		}
 
-
-		/* glEnable(GL_CULL_FACE); */
-		/* glEnable(GL_BLEND); */
-		/* glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); */
-
-		float text_padding_left = SCREEN_WIDTH / 2;
-		float text_y_coordinates = SCREEN_HEIGHT / 2;
 
 		/* render_text( */
 		/* 		"A", */ 
@@ -576,4 +540,35 @@ void render_text(const char *text, float x, float y, float scale)
 	glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void draw_font_atlas() {
+		float img_height = font_atlas_height;
+		float img_width = font_atlas_width;
+		float xt = (SCREEN_WIDTH / 2) + (img_width / 2);
+		float yt = SCREEN_HEIGHT / 2;
+
+		float vertices[] = {
+			xt - img_width, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,// top left
+
+			xt, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,// top right
+			xt,  yt - img_height, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
+			xt - img_width, yt - img_height, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f// bottom left
+		};
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)0);
+
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)12);
+
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)28);
+
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
+
+		glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 }
