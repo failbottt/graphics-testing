@@ -13,7 +13,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 #define NUM_GLYPHS 128
 #define LETTER_SPACING 12.75f
@@ -249,7 +249,7 @@ int main() {
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -267,6 +267,9 @@ int main() {
 	unsigned int txidx = 0;
 	unsigned int tyidx = 0;
 
+	char* pixels = (char*)calloc(w * h, 1);
+	int pen_x = 0, pen_y = 0;
+
 	for (uint8_t i = 32; i < NUM_GLYPHS ; i++)
 	{
 		if (FT_Load_Char(face, i, FT_LOAD_RENDER))
@@ -274,6 +277,8 @@ int main() {
 			printf("ERROR::FREETYTPE: Failed to load Glyph\n");
 			return -1;
 		}
+		FT_Bitmap* bmp;
+		FT_Bitmap_New(bmp);
 
 		if (ox + g->bitmap.width + 1 >= img_width) {
 			tyidx++;
@@ -290,7 +295,7 @@ int main() {
 				face->glyph->bitmap.rows,
 				GL_RED,
 				GL_UNSIGNED_BYTE,
-				face->glyph->bitmap.buffer
+				g->bitmap.buffer
 				);
 
 		c[i].xoffset = txidx++;
@@ -358,6 +363,10 @@ int main() {
 	float sx = 2.0 / SCREEN_WIDTH;
 	float sy = 2.0 / SCREEN_HEIGHT;
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
 	while (RUNNING) {
 		glfwPollEvents();
 
@@ -400,24 +409,24 @@ int main() {
 				// pos
 				x - spritewidth, y, 0.0f,
 				// color
-				1.0f, 0.0f, 0.0f, 1.0f, 
+				1.0f, 1.0f, 0.0f, 1.0f, 
 				// tex coords
 				blx, bly, // bottom left
 				// tex index
 				0.0f,// top left
 
 				x, y, 0.0f, 
-				1.0f, 0.0f, 0.0f, 1.0f,
+				1.0f, 1.0f, 0.0f, 1.0f,
 				brx, bry, // bottom right
 				0.0f,// top right
 
 				x,  y - spriteheight, 0.0f, 
-				1.0f, 0.0f, 0.0f, 1.0f, 
+				1.0f, 1.0f, 0.0f, 1.0f, 
 				trx, try,  // top right
 				0.0f, // bottom right
 
 				x - spritewidth, y - spriteheight, 0.0f,  
-				1.0f, 0.0f, 0.0f, 1.0f, 
+				1.0f, 1.0f, 0.0f, 1.0f, 
 				tlx, tly,  // top left
 				0.0f// bottom left
 			};
