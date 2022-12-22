@@ -13,15 +13,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define SCREEN_WIDTH   1024
+#define NUM_GLYPHS 128
+
+#define SCREEN_WIDTH  1980 
 #define SCREEN_HEIGHT  786
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-	unsigned int indices[] = {  // note that we start from 0!
-		// snake head
-		0, 1, 3,  // first Triangle
-		1, 2, 3,   // second Triangle
-	};
+unsigned int indices[] = {  // note that we start from 0!
+	0, 1, 3,  // first Triangle
+	1, 2, 3,   // second Triangle
+};
 
 void render_text(const char* text, float x, float y, float scale);
 GLuint compile_shaders(void);
@@ -203,26 +204,30 @@ int main() {
 	FT_Set_Pixel_Sizes(face, 32, 32);
 	FT_GlyphSlot g = face->glyph;
 
+	int font_atlas_width = 1028;
+	int font_atlas_height = 384;
 	unsigned int rowh = 0;
 	unsigned int roww = 0;
 
-	for (int i = 32; i < 127; i++) {
-		if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-			fprintf(stderr, "Loading character %c failed!\n", i);
-			continue;
-		}
-		if (roww + g->bitmap.width + 1 >= 350) {
-			w = MAX(w, roww);
-			h += rowh;
-			roww = 0;
-			rowh = 0;
-		}
-		roww += g->bitmap.width + 1;
-		rowh = MAX(rowh, g->bitmap.rows);
-	}
+	/* for (int i = 32; i < NUM_GLYPHS; i++) { */
+	/* 	if (FT_Load_Char(face, i, FT_LOAD_RENDER)) { */
+	/* 		fprintf(stderr, "Loading character %c failed!\n", i); */
+	/* 		continue; */
+	/* 	} */
+	/* 	if (roww + g->bitmap.width + 1 >= font_atlas_width) { */
+	/* 		w = MAX(w, roww); */
+	/* 		h += rowh; */
+	/* 		roww = 0; */
+	/* 		rowh = 0; */
+	/* 	} */
+	/* 	roww += g->bitmap.width + 1; */
+	/* 	rowh = MAX(rowh, g->bitmap.rows); */
+	/* } */
 
-	w = MAX(w, roww);
-	h += rowh;
+	/* 1024 × 384 pixels */
+
+	w = font_atlas_width;
+	h = font_atlas_height;
 
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
@@ -234,8 +239,9 @@ int main() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	// make textures for ASCII characters 0-128
-	int ox = 0;
-	int oy = 0;
+	int cell_size = 64;
+	int ox = 24;
+	int oy = 24;
 	float img_height = h;
 	float img_width = w;
 	rowh = 0;
@@ -243,7 +249,7 @@ int main() {
 	unsigned int txidx = 0;
 	unsigned int tyidx = 0;
 
-	for (uint8_t i = 32; i <127 ; i++)
+	for (uint8_t i = 32; i < NUM_GLYPHS ; i++)
 	{
 		if (FT_Load_Char(face, i, FT_LOAD_RENDER))
 		{
@@ -255,8 +261,7 @@ int main() {
 			tyidx++;
 			txidx = 0;
 			oy += rowh;
-			rowh = 0;
-			ox = 0;
+			ox = 24;
 		}
 
 		glTexSubImage2D(GL_TEXTURE_2D,
@@ -285,8 +290,13 @@ int main() {
 		c[i].tx = ox / (float)w;
 		c[i].ty = oy / (float)h;
 
-		rowh = MAX(rowh, g->bitmap.rows);
-		ox += g->bitmap.width + 1;
+
+		float row_height = cell_size - MAX(rowh, g->bitmap.rows);
+		rowh = MAX(rowh, g->bitmap.rows) + row_height;
+
+		// column between characters
+		float col_width = cell_size - g->bitmap.width;
+		ox += g->bitmap.width + col_width;
 	}
 
 
@@ -306,8 +316,6 @@ int main() {
 	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
-	char *code = "Good news, everyone!";
 
 	float vertices[] = {};
 
@@ -351,75 +359,20 @@ int main() {
 		glBindTextureUnit(0, textureID);
 		glBindVertexArray(vertex_array_object);
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
+		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
 
-		float x = w;
-		float y = SCREEN_HEIGHT;
-
-		Character ch = c[69];
-	/* int xoffset; // x offset in texture */
-	/* int yoffset; // y offset in texture */
-
-	/* float ax;	// advance.x */
-	/* float ay;	// advance.y */
-
-	/* float bw;	// bitmap.width; */
-	/* float bh;	// bitmap.height; */
-
-	/* float bl;	// bitmap_left; */
-	/* float bt;	// bitmap_top; */
-
-	/* float tx;	// x offset of glyph in texture coordinates */
-	/* float ty;	// y offset of glyph in texture coordinates */
-
-		printf("bw %f\n", ch.bw);
-		printf("bh  %f\n", ch.bh);
-		printf("ax %f\n", ch.ax);
-		printf("ay  %f\n", ch.ay);
-		printf("bl %f\n", ch.bl);
-		printf("bt  %f\n", ch.bt);
-		printf("yoff %d\n", ch.yoffset);
-		printf("xoff %d\n", ch.xoffset);
-
-		float spritewidth = ch.bw;
-		float spriteheight = ch.bh;
-
-		int yl= ch.yoffset;
-		int xl= ch.xoffset;
-
-
-		float blx = ((xl* spritewidth) / w);
-		float bly = ((yl* spriteheight) / h); // bl
-		float brx = (((1+xl) * spritewidth) / w);
-		float bry = ((yl * spriteheight) / h); // br
-		float trx = (((1+xl) * spritewidth) / w);
-		float try = (((1+yl) * spriteheight) / h); // tr
-		float tlx = ((xl * spritewidth) / w);
-		float tly = (((1+yl) * spriteheight) / h); //tl
+		float img_height = font_atlas_height;
+		float img_width = font_atlas_width;
+		float xt = (SCREEN_WIDTH / 2) + (img_width / 2);
+		float yt = SCREEN_HEIGHT / 2;
 
 		float vertices[] = {
-			// pos
-			x - spritewidth, y, 0.0f,
-			// color
-			1.0f, 0.0f, 0.0f, 1.0f, 
-			// tex coords
-			blx, bly, // bottom left
-			// tex index
-			0.0f,// top left
+			// snake
+			xt - img_width, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,// top left
 
-			x, y, 0.0f, 
-			1.0f, 0.0f, 0.0f, 1.0f,
-			brx, bry, // bottom right
-			0.0f,// top right
-
-			x,  y - spriteheight, 0.0f, 
-			1.0f, 0.0f, 0.0f, 1.0f, 
-			trx, try,  // top right
-			0.0f, // bottom right
-
-			x - spritewidth, y - spriteheight, 0.0f,  
-			1.0f, 0.0f, 0.0f, 1.0f, 
-			tlx, tly,  // top left
-			0.0f// bottom left
+			xt, yt, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,// top right
+			xt,  yt - img_height, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
+			xt - img_width, yt - img_height, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f// bottom left
 		};
 
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
@@ -437,6 +390,70 @@ int main() {
 		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
 
 		glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+
+		float spritewidth = 64;
+		float spriteheight = 64;
+
+		char *text = "Good news, everyone!";
+		for (int i = 0; i < strlen(text); i++) {
+			Character ch = c[(int)text[i]];
+
+			int yl= ch.yoffset;
+			int xl= ch.xoffset;
+			float x = w - w / 2 + (i * spritewidth);
+			float y = SCREEN_HEIGHT + ch.bt;
+
+			float blx = ((xl* spritewidth) / w);
+			float bly = ((yl* spriteheight) / h); // bl
+			float brx = (((1+xl) * spritewidth) / w);
+			float bry = ((yl * spriteheight) / h); // br
+			float trx = (((1+xl) * spritewidth) / w);
+			float try = (((1+yl) * spriteheight) / h); // tr
+			float tlx = ((xl * spritewidth) / w);
+			float tly = (((1+yl) * spriteheight) / h); //tl
+
+			float verts[] = {
+				// pos
+				x - spritewidth, y, 0.0f,
+				// color
+				1.0f, 0.0f, 0.0f, 1.0f, 
+				// tex coords
+				blx, bly, // bottom left
+				// tex index
+				0.0f,// top left
+
+				x, y, 0.0f, 
+				1.0f, 0.0f, 0.0f, 1.0f,
+				brx, bry, // bottom right
+				0.0f,// top right
+
+				x,  y - spriteheight, 0.0f, 
+				1.0f, 0.0f, 0.0f, 1.0f, 
+				trx, try,  // top right
+				0.0f, // bottom right
+
+				x - spritewidth, y - spriteheight, 0.0f,  
+				1.0f, 0.0f, 0.0f, 1.0f, 
+				tlx, tly,  // top left
+				0.0f// bottom left
+			};
+
+			glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_DYNAMIC_DRAW);
+
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)0);
+
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)12);
+
+			glEnableVertexAttribArray(2);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)28);
+
+			glEnableVertexAttribArray(3);
+			glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
+
+			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+		}
 
 
 		/* glEnable(GL_CULL_FACE); */
@@ -487,9 +504,9 @@ void render_text(const char *text, float x, float y, float scale)
 		xpos = x + ch.bl * scale;
 		ypos = y - (ch.bw - ch.bt) * scale;
 
-			/* VEC2 size = {face->glyph->bitmap.width, face->glyph->bitmap.rows}; */
-			/* VEC2 bearing = {face->glyph->bitmap_left, face->glyph->bitmap_top}; */
-	/* struct { */
+		/* VEC2 size = {face->glyph->bitmap.width, face->glyph->bitmap.rows}; */
+		/* VEC2 bearing = {face->glyph->bitmap_left, face->glyph->bitmap_top}; */
+		/* struct { */
 		/* 	float ax;	// advance.x */
 		/* 	float ay;	// advance.y */
 
