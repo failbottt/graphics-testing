@@ -79,6 +79,16 @@ typedef struct point{
 	GLfloat t;
 } point;
 
+int RUNNING = 1;
+
+void key_handler(GLFWwindow* window, int key, int scancode, int action, int mods) {
+
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		RUNNING = 0;
+	}
+	return;
+}
+
 int main() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -99,6 +109,8 @@ int main() {
 		return -1;
 	}
 	glfwMakeContextCurrent(window);
+
+	glfwSetKeyCallback(window, key_handler);
 
 	// find memory location of the opengl functions used below
 	load_gl_extensions();
@@ -232,12 +244,13 @@ int main() {
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	
 	// make textures for ASCII characters 0-128
 	int cell_size = 64;
 	int ox = 24;
@@ -337,12 +350,10 @@ int main() {
 
 	glBindVertexArray(0);
 
-	int quit = 0;
-
 	float sx = 2.0 / SCREEN_WIDTH;
 	float sy = 2.0 / SCREEN_HEIGHT;
 
-	while (!quit) {
+	while (RUNNING) {
 		glfwPollEvents();
 
 		glDisable(GL_CULL_FACE);
