@@ -10,13 +10,14 @@
 #include "file.h"
 #include "gl_compile_errors.h"
 #include "base.h"
+#include "gl.h"
+#include "font.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define DEBUG 1
 
-#define NUM_GLYPHS 128
 #define LETTER_SPACING 12.75f
 #define LINE_SPACING 32 
 #define LEFT_PADDING 18
@@ -29,10 +30,8 @@ U8 mouse[64];
 
 F32 text_width = 16;
 F32 text_height = 16;
-U64 font_atlas_width = 416;
-U64 font_atlas_height = 64;
 
-US64 indices[] = {  // note that we start from 0!
+unsigned int indices[] = {  // note that we start from 0!
 	0, 1, 3,  // first Triangle
 	1, 2, 3,   // second Triangle
 };
@@ -42,28 +41,12 @@ void draw_text(U8* text, RGBA *rgba, F32 x, F32 y);
 void draw_button();
 GLuint compile_shaders(void);
 
-GLuint textureID;
-GLuint vertex_shader;
-GLuint frag_shader;
-GLuint quad_vertex_shader;
-GLuint quad_frag_shader;
-GLuint texture_program;
-GLuint quad_program;
 GLuint vertex_array_object;
 GLuint vertex_buffer_object;
 GLuint element_buffer_object;
 
-U64 w = 0;
-U64 h = 0;
 
-Character c[128];
-
-C8 *texture_vert_shader = "shaders/texture.vert";
-C8 *texture_frag_shader = "shaders/texture.frag";
-C8 *quad_vert_shader_path = "shaders/quad.vert";
-C8 *quad_frag_shader_path = "shaders/quad.frag";
-
-US64 VAO, VBO;
+unsigned int VAO, VBO;
 
 
 U8 RUNNING = 1;
@@ -109,188 +92,10 @@ int main() {
 	glfwSetKeyCallback(window, key_handler);
 	glfwSetCursorPosCallback(window, cursor_handler);
 
-	// find memory location of the opengl functions used below
 	load_gl_extensions();
-
-	C8 *vert_shader_source = read_file(texture_vert_shader);
-	C8 *frag_shader_source = read_file(texture_frag_shader);
-
-	C8 *font_vert_shader_source = read_file(quad_vert_shader_path);
-	C8 *quad_frag_shader_source = read_file(quad_frag_shader_path);
-
-	// compiles vert shader
-	vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertex_shader, 1, &vert_shader_source, NULL);
-	glCompileShader(vertex_shader);
-	checkCompileErrors(vertex_shader, "VERTEX");
-
-	quad_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(quad_vertex_shader, 1, &font_vert_shader_source, NULL);
-	glCompileShader(quad_vertex_shader);
-	checkCompileErrors(quad_vertex_shader, "QUADVERT");
-
-	// compiles frag shader
-	frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag_shader, 1, &frag_shader_source, NULL);
-	glCompileShader(frag_shader);
-	checkCompileErrors(frag_shader, "FRAG");
-
-	quad_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(quad_frag_shader, 1, &quad_frag_shader_source, NULL);
-	glCompileShader(quad_frag_shader);
-	checkCompileErrors(quad_frag_shader, "QUADFRAG");
-
-	// create program
-	texture_program = glCreateProgram();
-	glAttachShader(texture_program, vertex_shader);
-	glAttachShader(texture_program, frag_shader);
-	glLinkProgram(texture_program);
-
-	quad_program = glCreateProgram();
-	glAttachShader(quad_program, quad_vertex_shader);
-	glAttachShader(quad_program, quad_frag_shader);
-	glLinkProgram(quad_program);
-
-	// delete shaders because they are part of the program now
-	glDeleteShader(vertex_shader);
-	glDeleteShader(frag_shader);
-	glDeleteShader(quad_vertex_shader);
-	glDeleteShader(quad_frag_shader);
-	// TODO: free files read into memory
-
-	// 2D set coordinate space match height and width of screen rather than 0.0-1.0
-	// ORTHO
-	F32 pj[4][4] = {{0.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 0.0f, 0.0f},  
-		{0.0f, 0.0f, 0.0f, 0.0f},                    \
-		{0.0f, 0.0f, 0.0f, 0.0f}};
-
-	F32 rl, tb, fn;
-	F32 left = 0.0f;
-	F32 right = (F32)SCREEN_WIDTH;
-	F32 bottom = 0.0f;
-	F32 top = (F32)SCREEN_HEIGHT;
-	F32 nearZ = -1.0f;
-	F32 farZ = 1.0f;
-
-	rl = 1.0f / (right  - left);
-	tb = 1.0f / (top    - bottom);
-	fn =-1.0f / (farZ - nearZ);
-
-	pj[0][0] = 2.0f * rl;
-	pj[1][1] = 2.0f * tb;
-	pj[2][2] = 2.0f * fn;
-	pj[3][0] =-(right  + left)    * rl;
-	pj[3][1] =-(top    + bottom)  * tb;
-	pj[3][2] = (farZ + nearZ) * fn;
-	pj[3][3] = 1.0f;
-	// ORTHO END
-
-	glUseProgram(texture_program);
-	glUniformMatrix4fv(glGetUniformLocation(texture_program, "projection"), 1, GL_FALSE, (F32 *)pj);
-
-	glUseProgram(quad_program);
-	glUniformMatrix4fv(glGetUniformLocation(quad_program, "projection"), 1, GL_FALSE, (F32 *)pj);
-
-	// FREETYPE
-	// ----------------------
-	//
-	FT_Library ft;
-	// All functions return a value different than 0 whenever an error occurred
-	if (FT_Init_FreeType(&ft))
-	{
-		printf("ERROR::FREETYPE: Could not init FreeType Library\n");
-		return -1;
-	}
-
-	// load font as face
-	FT_Face face;
-	if (FT_New_Face(ft, "Hack-Regular.ttf", 0, &face)) {
-		printf("ERROR::FREETYPE: Failed to load font at ./external/fonts/Hack-Regular.ttf\n");
-		return -1;
-	}
-
-	FT_Set_Pixel_Sizes(face, 20, 20);
-	FT_GlyphSlot g = face->glyph;
-
-	U64 rowh = 0;
-
-	w = font_atlas_width;
-	h = font_atlas_height;
-
-	glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	// make textures for ASCII characters 0-128
-	U64 cell_size = 16;
-	U64 ox = 0;
-	U64 oy = 0;
-	rowh = 0;
-
-	U64 txidx = 0;
-	U64 tyidx = 0;
-
-	for (U8 i = 32; i < NUM_GLYPHS ; i++)
-	{
-		if (FT_Load_Char(face, i, FT_LOAD_RENDER))
-		{
-			printf("ERROR::FREETYTPE: Failed to load Glyph\n");
-			return -1;
-		}
-
-		if (ox + g->bitmap.width + 1 >= w) {
-			tyidx++;
-			txidx = 0;
-			oy += rowh;
-			ox = 0;
-		}
-
-		glTexSubImage2D(GL_TEXTURE_2D,
-				0,
-				ox,
-				oy,
-				face->glyph->bitmap.width,
-				face->glyph->bitmap.rows,
-				GL_RED,
-				GL_UNSIGNED_BYTE,
-				g->bitmap.buffer
-				);
-
-		c[i].xoffset = txidx++;
-		c[i].yoffset = tyidx;
-
-		c[i].ax = g->advance.x >> 6;
-		c[i].ay = g->advance.y >> 6;
-
-		c[i].bw = g->bitmap.width;
-		c[i].bh = g->bitmap.rows;
-
-		c[i].bl = g->bitmap_left;
-		c[i].bt = g->bitmap_top;
-
-		c[i].tx = ox / (F32)w;
-		c[i].ty = oy / (F32)h;
-
-
-		F32 row_height = cell_size - MAX(rowh, g->bitmap.rows);
-		rowh = MAX(rowh, g->bitmap.rows) + row_height;
-
-		// column between characters
-		F32 col_width = cell_size - g->bitmap.width;
-		ox += g->bitmap.width + col_width;
-	}
-
-
-	/* glBindTexture(GL_TEXTURE_2D, 0); */
-
-	FT_Done_Face(face);
-	FT_Done_FreeType(ft);
+	init_gl_programs();
+	gl_set_perspective_as_ortho(SCREEN_WIDTH, SCREEN_HEIGHT);
+	init_ft_font();
 
 	// configure VAO/VBO for texture quads
 	// -----------------------------------
@@ -327,23 +132,15 @@ int main() {
 
 	U8 *text = "Good news, everyone!";
 
-	// font color
-	/* float r = 1.0f; */
-	/* float g = 1.0f; */
-	/* float b = 1.0f; */
-	glUseProgram(quad_program);
-	glUniform3f(glGetUniformLocation(quad_program, "color"), 1.0, 1.0, 1.0);
-
+	const GLfloat bgColor[] = {0.10f,0.10f,0.10f,1.0f};
 	while (RUNNING) {
 		glfwPollEvents();
 
-		const GLfloat bgColor[] = {0.10f,0.10f,0.10f,1.0f};
 		glClearBufferfv(GL_COLOR, 0, bgColor);
-		glUseProgram(texture_program);
 		int loc = glGetUniformLocation(texture_program, "u_Textures");
 		int samplers[1] = {0};
 		glUniform1iv(loc, 1, samplers);
-		glBindTextureUnit(0, textureID);
+		glBindTextureUnit(0, texture_atlas_id);
 		glBindVertexArray(vertex_array_object);
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
 
