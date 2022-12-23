@@ -12,6 +12,8 @@ static PFNGLDELETESHADERPROC glDeleteShader = NULL;
 static PFNGLUSEPROGRAMPROC glUseProgram = NULL;
 static PFNGLGENVERTEXARRAYSPROC glGenVertexArrays = NULL;
 static PFNGLBINDVERTEXARRAYPROC glBindVertexArray = NULL;
+static PFNGLBINDTEXTUREUNITPROC glBindTextureUnit = NULL;
+static PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays = NULL;
 static PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback = NULL;
 static PFNGLDELETEPROGRAMPROC glDeleteProgram = NULL;
 static PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = NULL;
@@ -23,6 +25,7 @@ static PFNGLBUFFERDATAPROC glBufferData = NULL;
 static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray = NULL;
 static PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer = NULL;
 static PFNGLUNIFORM1IPROC glUniform1i = NULL;
+static PFNGLUNIFORM1IVPROC glUniform1iv = NULL;
 static PFNGLUNIFORM1FPROC glUniform1f = NULL;
 static PFNGLUNIFORM3FPROC glUniform3f = NULL;
 static PFNGLUNIFORM4FPROC glUniform4f = NULL;
@@ -36,6 +39,7 @@ static PFNGLGENERATEMIPMAPPROC glGenerateMipmap = NULL;
 static PFNGLUNIFORMMATRIX2FVPROC glUniformMatrix2fv = NULL;
 static PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv = NULL;
 static PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = NULL;
+static PFNGLCREATETEXTURESPROC glCreateTextures = NULL;
 
 // NOTE: All this does is find the location of the gl calls in memory.
 // If you wanted to add another gl function, you can follow the pattern you
@@ -68,6 +72,9 @@ static void load_gl_extensions(void)
   glUseProgram              = (PFNGLUSEPROGRAMPROC) glfwGetProcAddress("glUseProgram");
   glGenVertexArrays         = (PFNGLGENVERTEXARRAYSPROC) glfwGetProcAddress("glGenVertexArrays");
   glBindVertexArray         = (PFNGLBINDVERTEXARRAYPROC) glfwGetProcAddress("glBindVertexArray");
+  glBindTextureUnit			= (PFNGLBINDTEXTUREUNITPROC) glfwGetProcAddress("glBindTextureUnit");
+  glDeleteVertexArrays      = (PFNGLDELETEVERTEXARRAYSPROC) glfwGetProcAddress("glDeleteVertexArrays");
+  glCreateTextures			= (PFNGLCREATETEXTURESPROC) glfwGetProcAddress("glCreateTextures");
   glDeleteProgram           = (PFNGLDELETEPROGRAMPROC) glfwGetProcAddress("glDeleteProgram");
   glGetUniformLocation      = (PFNGLGETUNIFORMLOCATIONPROC) glfwGetProcAddress("glGetUniformLocation");
   glUniform2fv               = (PFNGLUNIFORM2FVPROC) glfwGetProcAddress("glUniform2fv");
@@ -82,6 +89,7 @@ static void load_gl_extensions(void)
   glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC) glfwGetProcAddress("glEnableVertexAttribArray");
   glVertexAttribPointer     = (PFNGLVERTEXATTRIBPOINTERPROC) glfwGetProcAddress("glVertexAttribPointer");
   glUniform1i               = (PFNGLUNIFORM1IPROC) glfwGetProcAddress("glUniform1i");
+  glUniform1iv              = (PFNGLUNIFORM1IVPROC) glfwGetProcAddress("glUniform1iv");
   glUniform1f               = (PFNGLUNIFORM1FPROC) glfwGetProcAddress("glUniform1f");
   glBufferSubData           = (PFNGLBUFFERSUBDATAPROC) glfwGetProcAddress("glBufferSubData");
   glClearBufferfv           = (PFNGLCLEARBUFFERFVPROC) glfwGetProcAddress("glClearBufferfv");
