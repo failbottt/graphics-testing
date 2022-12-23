@@ -12,37 +12,51 @@ typedef float		 F32;
 typedef double		 F64;
 
 typedef struct RGBA {
-	float r;
-	float g;
-	float b;
-	float a;
+	F32 r;
+	F32 g;
+	F32 b;
+	F32 a;
 } RGBA;
 
 typedef struct {
-	float x;
-	float y;
+	F32 x;
+	F32 y;
 } VEC2;
 
 typedef struct {
-	float x;
-	float y;
-	float z;
+	F32 x;
+	F32 y;
+	F32 z;
 } VEC3;
 
-typedef struct {
+typedef struct Character{
 	int xoffset; // x offset in texture
 	int yoffset; // y offset in texture
 
-	float ax;	// advance.x
-	float ay;	// advance.y
+	F32 ax;	// advance.x
+	F32 ay;	// advance.y
 
-	float bw;	// bitmap.width;
-	float bh;	// bitmap.height;
+	F32 bw;	// bitmap.width;
+	F32 bh;	// bitmap.height;
 
-	float bl;	// bitmap_left;
-	float bt;	// bitmap_top;
+	F32 bl;	// bitmap_left;
+	F32 bt;	// bitmap_top;
 
-	float tx;	// x offset of glyph in texture coordinates
-	float ty;	// y offset of glyph in texture coordinates
+	F32 tx;	// x offset of glyph in texture coordinates
+	F32 ty;	// y offset of glyph in texture coordinates
 } Character;
 
+typedef struct UI_Button {
+	U8  state;
+	F32 width;
+	F32 height;
+	F32 x;
+	F32 y;
+	RGBA color;
+	VEC2 top_left;
+	VEC2 top_right;
+	VEC2 bot_left;
+	VEC2 bot_right;
+} UI_Button;
+
+UI_Button buttons[2];

@@ -16,8 +16,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEBUG 1
-
 #define LETTER_SPACING 12.75f
 #define LINE_SPACING 32 
 #define LEFT_PADDING 18
@@ -27,6 +25,8 @@
 #define SCREEN_HEIGHT  786
 
 U8 mouse[64];
+F64 mouse_x_pos;
+F64 mouse_y_pos;
 
 F32 text_width = 16;
 F32 text_height = 16;
@@ -38,7 +38,7 @@ unsigned int indices[] = {  // note that we start from 0!
 
 void draw_font_atlas();
 void draw_text(U8* text, RGBA *rgba, F32 x, F32 y);
-void draw_button();
+void draw_button(UI_Button button);
 GLuint compile_shaders(void);
 
 GLuint vertex_array_object;
@@ -53,8 +53,9 @@ U8 RUNNING = 1;
 
 void cursor_handler(GLFWwindow* window, F64 xpos, F64 ypos)
 {
+	mouse_x_pos = xpos;
+	mouse_y_pos = ypos;
 	sprintf(mouse, "%f, %f", xpos, ypos);
-
 }
 
 void key_handler(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -133,6 +134,11 @@ int main() {
 	U8 *text = "Good news, everyone!";
 
 	const GLfloat bgColor[] = {0.10f,0.10f,0.10f,1.0f};
+
+	RGBA c = {1.0f, 0.5f, 0.0f, 0.5f};
+	UI_Button btn1 = {0, 200, 40, 400, SCREEN_HEIGHT - 100, c};
+	buttons[0] = btn1;
+
 	while (RUNNING) {
 		glfwPollEvents();
 
@@ -144,9 +150,8 @@ int main() {
 		glBindVertexArray(vertex_array_object);
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
 
-#if DEBUG
 		draw_font_atlas();
-#endif
+
 		F32 x = cell_size + LEFT_PADDING;
 		RGBA white = {1.0f, 1.0f, 1.0f, 1.0f};
 		draw_text(text, &white, x, SCREEN_HEIGHT - TOP_PADDING);
@@ -154,7 +159,7 @@ int main() {
 		U8 *text2 = "another bit of text";
 		draw_text(text2, &white, (SCREEN_WIDTH / 2), SCREEN_HEIGHT - TOP_PADDING);
 
-		draw_button();
+		draw_button(btn1);
 
 		draw_text(mouse, &white, SCREEN_WIDTH - 300, SCREEN_HEIGHT - TOP_PADDING);
 
@@ -179,6 +184,7 @@ void draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 		int yl= ch.yoffset;
 		int xl= ch.xoffset;
 
+		// NOTE (spangler): could cache this on the character and 
 		F32 blx = ((xl* text_width) / w);
 		F32 bly = ((yl* text_height) / h); // bl
 		F32 brx = (((1+xl) * text_width) / w);
@@ -232,32 +238,47 @@ void draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 	}
 }
 
-void draw_button() {
+void draw_button(UI_Button button) 
+{
 	glUseProgram(quad_program);
-	F32 btn_h = 40;
-	F32 btn_w = 200;
-	F32 x =  400;
-	F32 y = SCREEN_HEIGHT - 100;
+
+	F32 tlx = button.x - button.width;
+	F32 tly = button.y;
+	
+	F32 trx = button.x;
+	F32 try = button.y;
+
+    F32 brx = button.x;
+	F32 bry = button.y - button.height;
+
+	F32 blx	= button.x - button.width; 
+	F32 bly = button.y - button.height;
+
+	button.top_left  =  (VEC2) {tlx, tly};
+	button.top_right =  (VEC2) {trx, try};
+	button.bot_left  =  (VEC2) {brx, bry};
+	button.bot_right =  (VEC2) {blx, bly};
 
 	F32 vertices[] = {
 		// top left
 		// location
-		x - btn_w, y, 0.0f, 
+		button.x - button.width, button.y, 0.0f, 
 		// color
-		1.0f, 0.5f, 0.0f, 0.5f,
+		button.color.r, button.color.g, button.color.b, button.color.a,
 
 		// top right
-		x, y, 0.0f,
-		1.0f, 0.5f, 0.0f, 0.5f,
+		button.x, button.y, 0.0f,
+		button.color.r, button.color.g, button.color.b, button.color.a,
 
 		// bottom right
-		x,  y - btn_h, 0.0f,
-		1.0f, 0.5f, 0.0f, 0.5f,
+		button.x,  button.y - button.height, 0.0f,
+		button.color.r, button.color.g, button.color.b, button.color.a,
 
 		// bottom left
-		x - btn_w, y - btn_h, 0.0f,  
-		1.0f, 0.5f, 0.0f, 0.5f
+		button.x - button.width, button.y - button.height, 0.0f,  
+		button.color.r, button.color.g, button.color.b, button.color.a
 	};
+
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
@@ -270,11 +291,11 @@ void draw_button() {
 	glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 
 
-	glUseProgram(texture_program);
+	/* glUseProgram(texture_program); */
 
 	RGBA white = {1.0f, 1.0f, 1.0f, 1.0f};
-	U8 *text2 = "Do Something";
-	draw_text(text2, &white, 235, SCREEN_HEIGHT - 106 - (btn_h / 2));
+	U8 *text2 = "Button";
+	draw_text(text2, &white, 235 + ((5 * 16) / 2), SCREEN_HEIGHT - 106 - (button.height / 2));
 }
 
 void draw_font_atlas() {
