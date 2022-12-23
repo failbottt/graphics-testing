@@ -28,9 +28,6 @@ U8 mouse[64];
 F64 mouse_x_pos;
 F64 mouse_y_pos;
 
-F32 text_width = 16;
-F32 text_height = 16;
-
 unsigned int indices[] = {  // note that we start from 0!
 	0, 1, 3,  // first Triangle
 	1, 2, 3,   // second Triangle
@@ -174,6 +171,9 @@ int main() {
 
 void draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 {
+	F32 text_width = 16;
+	F32 text_height = 16;
+
 	glUseProgram(texture_program);
 
 	for (size_t i = 0; i < strlen(text); i++) {
