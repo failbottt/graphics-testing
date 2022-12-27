@@ -169,7 +169,8 @@ int main() {
 	glfwTerminate();
 }
 
-void draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
+void 
+draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 {
 	F32 text_width = 16;
 	F32 text_height = 16;
@@ -290,8 +291,6 @@ void draw_button(UI_Button button)
 
 	glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 
-
-	/* glUseProgram(texture_program); */
 
 	RGBA white = {1.0f, 1.0f, 1.0f, 1.0f};
 	U8 *text2 = "Button";

@@ -1,0 +1,4 @@
+#define LETTER_SPACING 12.75f
+#define LINE_SPACING 32 
+#define LEFT_PADDING 18
+#define TOP_PADDING 32
