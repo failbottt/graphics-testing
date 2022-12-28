@@ -6,23 +6,13 @@
 #include FT_FREETYPE_H
 #include "GLFW/glfw3.h"
 
-/* #include "glextloader.c" */
 #include "file.h"
-/* #include "gl_compile_errors.h" */
 #include "base.h"
 #include "graphics.h"
 #include "font.h"
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-#define LETTER_SPACING 12.75f
-#define LINE_SPACING 32 
-#define LEFT_PADDING 18
-#define TOP_PADDING 32
-
-#define SCREEN_WIDTH  1980 
-#define SCREEN_HEIGHT  786
+#include "settings.h"
 
 U8 mouse[64];
 F64 mouse_x_pos;
@@ -69,7 +59,7 @@ int main() {
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "ed", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "glfw_starter", NULL, NULL);
 	if (window == NULL)
 	{
 		printf("Failed to create GLFW window\n");
@@ -131,10 +121,26 @@ int main() {
 	GLuint textureID;
 	{
 		int w, h, bits;
-		unsigned char *pixels = stbi_load("./external/images/background.png", &w, &h, &bits, STBI_rgb_alpha);
+		unsigned char *pixels = stbi_load("./external/images/bg_space_seamless.png", &w, &h, &bits, STBI_rgb_alpha);
 
 		glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
 		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		stbi_image_free(pixels);
+	}
+
+	GLuint textureID2;
+	{
+		int w, h, bits;
+		unsigned char *pixels = stbi_load("./external/images/background.png", &w, &h, &bits, STBI_rgb_alpha);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &textureID2);
+		glBindTexture(GL_TEXTURE_2D, textureID2);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -166,12 +172,52 @@ int main() {
 			float y = SCREEN_HEIGHT;
 
 			float vertices[] = {
-				// snake
-				x - img_width, y, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,// top left
+				// pos									// color					/tex coord	 texindex
+				x - img_width, y, 0.0f,					1.0f, 0.0f, 0.0f, 1.0f,		0.0f, 0.0f,  0.0f,// top left
+				x, y, 0.0f,								1.0f, 0.0f, 0.0f, 1.0f,		1.0f, 0.0f,  0.0f,// top right
+				x,  y - img_height, 0.0f,				1.0f, 0.0f, 0.0f, 1.0f,		1.0f, 1.0f,  0.0f, // bottom right
+				x - img_width, y - img_height, 0.0f,	1.0f, 0.0f, 0.0f, 1.0f,		0.0f, 1.0f,  0.0f// bottom left
+			};
 
-				x, y, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,// top right
-				x,  y - img_height, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
-				x - img_width, y - img_height, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f// bottom left
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)0);
+
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)12);
+
+			glEnableVertexAttribArray(2);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)28);
+
+			glEnableVertexAttribArray(3);
+			glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
+
+			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+		}
+		// draw second image
+		{
+			glUseProgram(image_program);
+			int loc = glGetUniformLocation(image_program, "u_Textures");
+			int samplers[1] = {0};
+			glUniform1iv(loc, 1, samplers);
+
+			glBindTextureUnit(0, textureID2);
+			glBindVertexArray(vertex_array_object);
+
+			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
+
+			float img_height = 400;
+			float img_width = 600;
+			float x = SCREEN_WIDTH - 100;
+			float y = SCREEN_HEIGHT - 200;
+
+			float vertices[] = {
+				// pos									// color					/tex coord	 texindex
+				x - img_width, y, 0.0f,					1.0f, 0.0f, 0.0f, 1.0f,		0.0f, 0.0f,  0.0f,// top left
+				x, y, 0.0f,								1.0f, 0.0f, 0.0f, 1.0f,		1.0f, 0.0f,  0.0f,// top right
+				x,  y - img_height, 0.0f,				1.0f, 0.0f, 0.0f, 1.0f,		1.0f, 1.0f,  0.0f, // bottom right
+				x - img_width, y - img_height, 0.0f,	1.0f, 0.0f, 0.0f, 1.0f,		0.0f, 1.0f,  0.0f// bottom left
 			};
 
 			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);

@@ -2,3 +2,6 @@
 #define LINE_SPACING 32 
 #define LEFT_PADDING 18
 #define TOP_PADDING 32
+
+#define SCREEN_WIDTH  1980 
+#define SCREEN_HEIGHT  786
