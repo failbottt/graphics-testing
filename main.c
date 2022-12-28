@@ -6,11 +6,11 @@
 #include FT_FREETYPE_H
 #include "GLFW/glfw3.h"
 
-#include "glextloader.c"
+/* #include "glextloader.c" */
 #include "file.h"
-#include "gl_compile_errors.h"
+/* #include "gl_compile_errors.h" */
 #include "base.h"
-#include "gl.h"
+#include "graphics.h"
 #include "font.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -28,11 +28,6 @@ U8 mouse[64];
 F64 mouse_x_pos;
 F64 mouse_y_pos;
 
-unsigned int indices[] = {  // note that we start from 0!
-	0, 1, 3,  // first Triangle
-	1, 2, 3,   // second Triangle
-};
-
 void draw_font_atlas();
 void draw_text(U8* text, RGBA *rgba, F32 x, F32 y);
 void draw_button(UI_Button button);
@@ -42,9 +37,7 @@ GLuint vertex_array_object;
 GLuint vertex_buffer_object;
 GLuint element_buffer_object;
 
-
 unsigned int VAO, VBO;
-
 
 U8 RUNNING = 1;
 
@@ -90,10 +83,9 @@ int main() {
 	glfwSetKeyCallback(window, key_handler);
 	glfwSetCursorPosCallback(window, cursor_handler);
 
-	load_gl_extensions();
-	init_gl_programs();
-	gl_set_perspective_as_ortho(SCREEN_WIDTH, SCREEN_HEIGHT);
-	init_ft_font();
+	initGraphics();
+	setPerspective2D(SCREEN_WIDTH, SCREEN_HEIGHT);
+	initFont();
 
 	// configure VAO/VBO for texture quads
 	// -----------------------------------
@@ -136,11 +128,70 @@ int main() {
 	UI_Button btn1 = {0, 200, 40, 400, SCREEN_HEIGHT - 100, c};
 	buttons[0] = btn1;
 
+	GLuint textureID;
+	{
+		int w, h, bits;
+		unsigned char *pixels = stbi_load("./external/images/background.png", &w, &h, &bits, STBI_rgb_alpha);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		stbi_image_free(pixels);
+	}
+
 	while (RUNNING) {
 		glfwPollEvents();
 
 		glClearBufferfv(GL_COLOR, 0, bgColor);
-		int loc = glGetUniformLocation(texture_program, "u_Textures");
+
+		{
+			glUseProgram(image_program);
+			int loc = glGetUniformLocation(image_program, "u_Textures");
+			int samplers[1] = {0};
+			glUniform1iv(loc, 1, samplers);
+
+			glBindTextureUnit(0, textureID);
+			glBindVertexArray(vertex_array_object);
+
+			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
+
+			float img_height = SCREEN_HEIGHT;
+			float img_width = SCREEN_WIDTH;
+			float x = SCREEN_WIDTH;
+			float y = SCREEN_HEIGHT;
+
+			float vertices[] = {
+				// snake
+				x - img_width, y, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,// top left
+
+				x, y, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,// top right
+				x,  y - img_height, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
+				x - img_width, y - img_height, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f// bottom left
+			};
+
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)0);
+
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)12);
+
+			glEnableVertexAttribArray(2);
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)28);
+
+			glEnableVertexAttribArray(3);
+			glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, (sizeof(float)*10), (void *)36);
+
+			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+		}
+
+		int loc = glGetUniformLocation(atlas_program, "u_Textures");
 		int samplers[1] = {0};
 		glUniform1iv(loc, 1, samplers);
 		glBindTextureUnit(0, texture_atlas_id);
@@ -164,7 +215,7 @@ int main() {
 	}
 
 	glDeleteVertexArrays(1, &vertex_array_object);
-	glDeleteProgram(texture_program);
+	glDeleteProgram(atlas_program);
 	glDeleteProgram(quad_program);
 	glfwTerminate();
 }
@@ -175,7 +226,7 @@ draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 	F32 text_width = 16;
 	F32 text_height = 16;
 
-	glUseProgram(texture_program);
+	glUseProgram(atlas_program);
 
 	for (size_t i = 0; i < strlen(text); i++) {
 		Character ch = c[(int)text[i]];
@@ -298,6 +349,7 @@ void draw_button(UI_Button button)
 }
 
 void draw_font_atlas() {
+	glUseProgram(atlas_program);
 	F32 img_height = font_atlas_height;
 	F32 img_width = font_atlas_width;
 	F32 xt = (SCREEN_WIDTH / 2) + (img_width / 2);

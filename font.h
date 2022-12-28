@@ -8,7 +8,7 @@ Character c[128];
 U64 w = 0;
 U64 h = 0;
 
-void init_ft_font()
+void initFont()
 {
 
 	FT_Library ft;

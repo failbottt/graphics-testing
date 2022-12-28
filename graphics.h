@@ -13,64 +13,96 @@ GLuint element_buffer_object;
 
 unsigned int VAO, VBO;
 
-const char *texture_vert_shader = "shaders/texture.vert";
-const char *texture_frag_shader = "shaders/texture.frag";
+const char *atlas_vert_shader_path = "shaders/atlas.vert";
+const char *atlas_frag_shader_path = "shaders/atlas.frag";
+
 const char *quad_vert_shader_path = "shaders/quad.vert";
 const char *quad_frag_shader_path = "shaders/quad.frag";
 
-GLuint vertex_shader;
-GLuint frag_shader;
+const char *image_vert_shader_path = "shaders/image.vert";
+const char *image_frag_shader_path = "shaders/image.frag";
+
+GLuint atlas_program;
+GLuint atlas_vertex_shader;
+GLuint atlas_frag_shader;
+
+GLuint quad_program;
 GLuint quad_vertex_shader;
 GLuint quad_frag_shader;
-GLuint texture_program;
-GLuint quad_program;
+
+GLuint image_vertex_shader;
+GLuint image_frag_shader;
+GLuint image_program;
 
 	void 
 initGraphics() 
 {
-	const char *vert_shader_source = read_file(texture_vert_shader);
-	const char *frag_shader_source = read_file(texture_frag_shader);
-	const char *font_vert_shader_source = read_file(quad_vert_shader_path);
+	loadGlExtensions();
+
+	const char *atlas_vert_shader_source = read_file(atlas_vert_shader_path);
+	const char *atlas_frag_shader_source = read_file(atlas_frag_shader_path);
+
+	const char *quad_vert_shader_source = read_file(quad_vert_shader_path);
 	const char *quad_frag_shader_source = read_file(quad_frag_shader_path);
 
-	// compiles vert shader
-	vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertex_shader, 1, &vert_shader_source, NULL);
-	glCompileShader(vertex_shader);
-	checkCompileErrors(vertex_shader, "VERTEX");
+	const char *image_vert_shader_source = read_file(image_vert_shader_path);
+	const char *image_frag_shader_source = read_file(image_frag_shader_path);
+
+	// VERT 
+	atlas_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(atlas_vertex_shader, 1, &atlas_vert_shader_source, NULL);
+	glCompileShader(atlas_vertex_shader);
+	checkCompileErrors(atlas_vertex_shader, "ATLASVERTEX");
 
 	quad_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(quad_vertex_shader, 1, &font_vert_shader_source, NULL);
+	glShaderSource(quad_vertex_shader, 1, &quad_vert_shader_source, NULL);
 	glCompileShader(quad_vertex_shader);
 	checkCompileErrors(quad_vertex_shader, "QUADVERT");
 
-	// compiles frag shader
-	frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag_shader, 1, &frag_shader_source, NULL);
-	glCompileShader(frag_shader);
-	checkCompileErrors(frag_shader, "FRAG");
+	image_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(image_vertex_shader, 1, &image_vert_shader_source, NULL);
+	glCompileShader(image_vertex_shader);
+	checkCompileErrors(image_vertex_shader, "IMAGEVERT");
+
+	// FRAG
+	atlas_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(atlas_frag_shader, 1, &atlas_frag_shader_source, NULL);
+	glCompileShader(atlas_frag_shader);
+	checkCompileErrors(atlas_frag_shader, "atlas_FRAG");
 
 	quad_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(quad_frag_shader, 1, &quad_frag_shader_source, NULL);
 	glCompileShader(quad_frag_shader);
 	checkCompileErrors(quad_frag_shader, "QUADFRAG");
 
+	image_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(image_frag_shader, 1, &image_frag_shader_source, NULL);
+	glCompileShader(image_frag_shader);
+	checkCompileErrors(image_frag_shader, "IMAGEFRAG");
+
 	// create program
-	texture_program = glCreateProgram();
-	glAttachShader(texture_program, vertex_shader);
-	glAttachShader(texture_program, frag_shader);
-	glLinkProgram(texture_program);
+	atlas_program = glCreateProgram();
+	glAttachShader(atlas_program, atlas_vertex_shader);
+	glAttachShader(atlas_program, atlas_frag_shader);
+	glLinkProgram(atlas_program);
 
 	quad_program = glCreateProgram();
 	glAttachShader(quad_program, quad_vertex_shader);
 	glAttachShader(quad_program, quad_frag_shader);
 	glLinkProgram(quad_program);
 
+	image_program = glCreateProgram();
+	glAttachShader(image_program, image_vertex_shader);
+	glAttachShader(image_program, image_frag_shader);
+	glLinkProgram(image_program);
+
 	// delete shaders because they are part of the program now
-	glDeleteShader(vertex_shader);
-	glDeleteShader(frag_shader);
+	glDeleteShader(atlas_vertex_shader);
+	glDeleteShader(atlas_frag_shader);
 	glDeleteShader(quad_vertex_shader);
 	glDeleteShader(quad_frag_shader);
+	glDeleteShader(image_vertex_shader);
+	glDeleteShader(image_frag_shader);
 
 	// TODO (spangler): figure out a better place for this
 	// configure VAO/VBO for texture quads
@@ -136,18 +168,21 @@ setPerspective2D(U64 screen_width, U64 screen_height)
 	pj[3][3] = 1.0f;
 	// ORTHO END
 
-	glUseProgram(texture_program);
-	glUniformMatrix4fv(glGetUniformLocation(texture_program, "projection"), 1, GL_FALSE, (F32 *)pj);
+	glUseProgram(atlas_program);
+	glUniformMatrix4fv(glGetUniformLocation(atlas_program, "projection"), 1, GL_FALSE, (F32 *)pj);
 
 	glUseProgram(quad_program);
 	glUniformMatrix4fv(glGetUniformLocation(quad_program, "projection"), 1, GL_FALSE, (F32 *)pj);
+
+	glUseProgram(image_program);
+	glUniformMatrix4fv(glGetUniformLocation(image_program, "projection"), 1, GL_FALSE, (F32 *)pj);
 }
 
 void
 graphics_cleanup()
 {
 	glDeleteVertexArrays(1, &vertex_array_object);
-	glDeleteProgram(texture_program);
+	glDeleteProgram(atlas_program);
 	glDeleteProgram(quad_program);
 	glfwTerminate();
 }

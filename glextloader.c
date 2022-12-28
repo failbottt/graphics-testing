@@ -56,7 +56,7 @@ static PFNGLCREATETEXTURESPROC glCreateTextures = NULL;
 // Additionally, there are libraries out there that do this for you, for instance, I think GLUT will
 // do all of this for you. I did this because the only libarary I wanted to link against was GLFW for
 // cross platform Window creation and mouse/keyboard input.
-static void load_gl_extensions(void)
+static void loadGlExtensions(void)
 {
   glCreateShader            = (PFNGLCREATESHADERPROC) glfwGetProcAddress("glCreateShader");
   glShaderSource            = (PFNGLSHADERSOURCEPROC) glfwGetProcAddress("glShaderSource");
