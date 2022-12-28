@@ -10,7 +10,6 @@ U64 h = 0;
 
 void initFont()
 {
-
 	FT_Library ft;
 	if (FT_Init_FreeType(&ft))
 	{
@@ -90,11 +89,9 @@ void initFont()
 		c[i].tx = ox / (F32)w;
 		c[i].ty = oy / (F32)h;
 
-
 		F32 row_height = cell_size - MAX(rowh, g->bitmap.rows);
 		rowh = MAX(rowh, g->bitmap.rows) + row_height;
 
-		// column between characters
 		F32 col_width = cell_size - g->bitmap.width;
 		ox += g->bitmap.width + col_width;
 	}

@@ -150,6 +150,22 @@ int main() {
 		stbi_image_free(pixels);
 	}
 
+	GLuint textureID3;
+	{
+		int w, h, bits;
+		unsigned char *pixels = stbi_load("./external/images/Overworld.png", &w, &h, &bits, STBI_rgb_alpha);
+
+		glCreateTextures(GL_TEXTURE_2D, 1, &textureID3);
+		glBindTexture(GL_TEXTURE_2D, textureID3);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		stbi_image_free(pixels);
+	}
+
 	while (RUNNING) {
 		glfwPollEvents();
 
@@ -237,6 +253,74 @@ int main() {
 			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 		}
 
+		// draw images from texture atlas
+		{
+
+			glUseProgram(image_program);
+			int loc = glGetUniformLocation(image_program, "u_Textures");
+			int samplers[1] = {0};
+			glUniform1iv(loc, 1, samplers);
+
+			glBindTextureUnit(0, textureID3);
+			glBindVertexArray(vertex_array_object);
+
+			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
+			float img_height = 128.0f;
+			float img_width = 128.0f;
+			float xpos = img_width;
+			float ypos = img_height;
+			float spritewidth = 16.0f;
+			float spriteheight = 16.0f;
+			int x = 11;
+			int y = 9;
+			int w = 640;
+			int h = 576;
+
+
+			int rc = 4;
+			int cc = (int)(SCREEN_WIDTH / img_width);
+
+			// draw map
+				ypos = ((0)*img_height)+200;
+
+					xpos = (0*img_width)+200;
+					float x1 = ((x * spritewidth) / w);
+					float y1 = ((y * spriteheight) / h);
+					float x2 = (((1+x) * spritewidth) / w);
+					float y2 = ((y * spriteheight) / h);
+					float x3 = (((1+x) * spritewidth) / w);
+					float y3 = (((1+y) * spriteheight) / h);
+					float x4 = ((x * spritewidth) / w);
+					float y4 = (((1+y) * spriteheight) / h);
+
+					float vertices[] = {
+						// positions							// colors				 // texture coords
+						xpos,			ypos,				0.0f, 1.0f, 0.0f, 0.0f,  x3, y3, // top right
+						xpos,			ypos-img_height,	0.0f, 0.0f, 1.0f, 0.0f,  x2, y2, // bottom right
+						xpos-img_width,	ypos-img_height,	0.0f, 0.0f, 0.0f, 0.0f,  x1, y1, // bottom left
+						xpos-img_width,	ypos,				0.0f, 1.0f, 1.0f, 0.0f,  x4, y4  // top left 
+					};
+
+
+					glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object);
+					glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer_object);
+					glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+					// position attribute
+					glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+					glEnableVertexAttribArray(0);
+					// color attribute
+					glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+					glEnableVertexAttribArray(1);
+					// texture coord attribute
+					glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+					glEnableVertexAttribArray(2);
+
+					glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+		}
+
 		int loc = glGetUniformLocation(atlas_program, "u_Textures");
 		int samplers[1] = {0};
 		glUniform1iv(loc, 1, samplers);
@@ -266,7 +350,7 @@ int main() {
 	glfwTerminate();
 }
 
-void 
+	void 
 draw_text(U8 *text, RGBA *rgba, F32 xpos, F32 ypos)
 {
 	F32 text_width = 16;
@@ -342,11 +426,11 @@ void draw_button(UI_Button button)
 
 	F32 tlx = button.x - button.width;
 	F32 tly = button.y;
-	
+
 	F32 trx = button.x;
 	F32 try = button.y;
 
-    F32 brx = button.x;
+	F32 brx = button.x;
 	F32 bry = button.y - button.height;
 
 	F32 blx	= button.x - button.width; 
