@@ -24,10 +24,13 @@ enum Camera_Movement {
 	RIGHT
 };
 
+float lastX, lastY;
+int firstMouse = 1;
+
 const float YAW			= -90.0f;
 const float PITCH		= 0.0f;
 const float SPEED		= 10.5f;
-const float SENSITIVITY = 0.1f;
+const float SENSITIVITY = 0.05f;
 const float ZOOM		= 45.0f;
 
 vec3 Position	= {0.0f, 0.0f, 5.0f};
@@ -111,6 +114,63 @@ key_handler(GLFWwindow* window, int key, int scancode, int action, int mods)
 	return;
 }
 
+void 
+mouse_handler(GLFWwindow *window, double xpos_in, double ypos_in) 
+{
+    float xpos = (float)xpos_in;
+    float ypos = (float)ypos_in;
+
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = 0;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+	//ypos
+
+	float yoff = yoffset * MouseSensitivity;
+	float xoff = xoffset * MouseSensitivity;
+
+	Yaw += xoff;
+	Pitch += yoff;
+
+	printf("x: %f, y: %f\n", xpos, ypos);
+
+	// make sure pitch is not out of bounds
+	
+	if (Pitch > 89.0f) {
+		Pitch = 89.0f;
+	}
+	if (Pitch < -89.0f) {
+		Pitch = -89.0f;
+	}
+
+	Front[0] = cos(glm_rad(Yaw)) * cos(glm_rad(Pitch));
+	Front[1] = sin(glm_rad(Pitch));
+	Front[2] = sin(glm_rad(Yaw)) * cos(glm_rad(Pitch));
+	glm_vec3_normalize(Front);
+
+
+	vec3 right;
+	glm_vec3_cross(Front, WorldUp, right);
+	glm_vec3_normalize(right);
+	Right[0] = right[0];
+	Right[1] = right[1];
+	Right[2] = right[2];
+
+	vec3 up;
+	glm_vec3_cross(Right, Front, up);
+	glm_vec3_normalize(up);
+	Up[0] = up[0];
+	Up[1] = up[1];
+	Up[2] = up[2];
+}
+ 
 int main() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -134,7 +194,9 @@ int main() {
 	glEnable(GL_CULL_FACE);
 	glfwMakeContextCurrent(window);
 	glfwSetKeyCallback(window, key_handler);
-
+	glfwSetCursorPosCallback(window, mouse_handler);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+ 
 	loadGlExtensions();
 	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
