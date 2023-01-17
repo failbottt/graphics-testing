@@ -17,11 +17,96 @@
 
 int RUNNING = 1;
 
+enum Camera_Movement {
+	FORWARD,
+	BACKWARD,
+	LEFT,
+	RIGHT
+};
+
+const float YAW			= -90.0f;
+const float PITCH		= 0.0f;
+const float SPEED		= 10.5f;
+const float SENSITIVITY = 0.1f;
+const float ZOOM		= 45.0f;
+
+vec3 Position	= {0.0f, 0.0f, 5.0f};
+vec3 Front		= {0.0f, 0.0f, -1.0f};
+vec3 Up			= {0.0f, 1.0f, 0.0f};
+vec3 Right		= {0.0f, 0.0f, 0.0f}; // empty
+vec3 WorldUp    = {0.0f, 1.0f, 0.0f};
+
+float Yaw				= YAW;
+float Pitch				= PITCH;
+float MovementSpeed		= SPEED;
+float MouseSensitivity	= SENSITIVITY;
+float Zoom				= ZOOM;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
 void 
 key_handler(GLFWwindow* window, int key, int scancode, int action, int mods) 
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		RUNNING = 0;
+	}
+	if (key == GLFW_KEY_W && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		vec3 s;
+		glm_vec3_scale(Front, (MovementSpeed * deltaTime), s);
+
+		vec3 p;
+		glm_vec3_add(Position, s, p);
+
+		Position[0] = p[0];
+		Position[1] = p[1];
+		Position[2] = p[2];
+
+		printf("pos1 %f, pos2%f, pos3%f\n", p[0], p[1], p[2]);
+
+	}
+
+	if (key == GLFW_KEY_S && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		vec3 s;
+		glm_vec3_scale(Front, (MovementSpeed * deltaTime), s);
+
+		vec3 p;
+		glm_vec3_sub(Position, s, p);
+
+		Position[0] = p[0];
+		Position[1] = p[1];
+		Position[2] = p[2];
+
+		printf("pos1 %f, pos2%f, pos3%f\n", Position[0], Position[1], Position[2]);
+
+	}
+
+	if (key == GLFW_KEY_D && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		vec3 s;
+		glm_vec3_scale(Right, (MovementSpeed * deltaTime), s);
+
+		vec3 p;
+		glm_vec3_add(Position, s, p);
+
+		Position[0] = p[0];
+		Position[1] = p[1];
+		Position[2] = p[2];
+		printf("pos1 %f, pos2%f, pos3%f\n", Position[0], Position[1], Position[2]);
+
+	}
+
+	if (key == GLFW_KEY_A && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		vec3 s;
+		glm_vec3_scale(Right, (MovementSpeed * deltaTime), s);
+
+		vec3 p;
+		glm_vec3_sub(Position, s, p);
+
+		Position[0] = p[0];
+		Position[1] = p[1];
+		Position[2] = p[2];
+
+		printf("pos1 %f, pos2%f, pos3%f\n", Position[0], Position[1], Position[2]);
 	}
 	return;
 }
@@ -116,7 +201,7 @@ int main() {
          0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f,
          0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f,
     };
 	/* float vertices[] = { */
 	/* 	// triangle */
@@ -191,7 +276,6 @@ int main() {
 	vec3 cameraUp = {0.0, 1.0f, 0.0f};
 	float view[4][4];
 	glm_mat4_identity(view);
-	glm_lookat(cameraPos, cameraFront, cameraUp, view);
 
 	float model[4][4];
 	glm_mat4_identity(model);
@@ -207,6 +291,10 @@ int main() {
 
 	glEnable(GL_DEPTH_TEST);
 	while (RUNNING) {
+		float currentFrame = glfwGetTime();
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
 		glfwPollEvents();
 
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -216,8 +304,35 @@ int main() {
 
 		glBindVertexArray(VAO);
 
-		glm_rotated_y(id, (float)glfwGetTime(), model);
-		glm_rotated_x(model, (float)glfwGetTime(), model);
+		vec3 front;
+		front[0] = cos(glm_rad(Yaw)) * cos(glm_rad(Pitch));
+		front[1] = sin(glm_rad(Pitch));
+		front[2] = sin(glm_rad(Yaw)) * cos(glm_rad(Pitch));
+		glm_vec3_normalize(front);
+		Front[0] = front[0];
+		Front[1] = front[1];
+		Front[2] = front[2];
+
+		vec3 right;
+		glm_vec3_cross(Front, WorldUp, right);
+		glm_vec3_normalize(right);
+		Right[0] = right[0];
+		Right[1] = right[1];
+		Right[2] = right[2];
+
+		vec3 up;
+		glm_vec3_cross(Right, Front, up);
+		glm_vec3_normalize(up);
+		Up[0] = up[0];
+		Up[1] = up[1];
+		Up[2] = up[2];
+
+		vec3 s; 
+		glm_vec3_add(Position, Front, s);
+		glm_lookat(Position, s, Up, view);
+
+		/* glm_rotated_y(id, (float)glfwGetTime(), model); */
+		/* glm_rotated_x(model, (float)glfwGetTime(), model); */
 		glUniformMatrix4fv(umodel, 1, GL_FALSE, (float*)model);
 		glUniformMatrix4fv(uview, 1, GL_FALSE, (float*)view);
 		glUniformMatrix4fv(uprojection, 1, GL_FALSE, (float*)projection);
